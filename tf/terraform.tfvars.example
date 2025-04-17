@@ -1,0 +1,34 @@
+# Example terraform.tfvars file
+# Rename to terraform.tfvars and fill in your actual values
+
+# Datadog API and Application Keys
+# Get these from your Datadog account: https://app.datadoghq.com/organization-settings/api-keys
+datadog_api_key = "your_datadog_api_key_here"
+datadog_app_key = "your_datadog_app_key_here"
+
+# Alert Variables
+cpu_threshold     = 80  # Trigger alert when CPU is above 80%
+evaluation_period = 5   # Evaluate over 5 minutes
+environment       = "development"  # Change to "production" for production environment
+
+# Notification Variables
+notification_emails = [
+  "admin@example.com",
+  "oncall@example.com"
+]
+
+# Slack Notifications
+enable_slack_notifications = true
+slack_channel = "monitoring-alerts"  # Channel name without the # symbol
+
+# Email Notifications
+enable_email_notifications = true
+
+# PagerDuty Notifications (disabled by default)
+enable_pagerduty_notifications = false
+pagerduty_service_key = ""  # Your PagerDuty service integration key
+
+# Notification Formatting
+notification_message_prefix = "[MONITORING]"
+escalation_message = "This alert is still not resolved and requires immediate attention!"
+include_tags_in_title = true

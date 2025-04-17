@@ -7,9 +7,9 @@ terraform {
   }
 }
 
-# Configuración del proveedor de AWS
+# AWS Provider Configuration
 provider "aws" {
-  region = "us-east-1" # Cambia a la región donde están tus instancias EC2
+  region = "us-east-1" # Change to your AWS region
 }
 
 # Configuración del proveedor de Datadog
@@ -29,6 +29,35 @@ variable "datadog_api_key" {
 variable "datadog_app_key" {
   description = "App Key para Datadog"
   type        = string
+}
+
+# Create an IAM role for Datadog
+resource "aws_iam_role" "datadog_role" {
+  name = "DatadogIntegrationRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          AWS = "arn:aws:iam::464622532012:root" # Datadog's AWS account
+        },
+        Action = "sts:AssumeRole",
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = "datadog-external-id"  # You'll get this from Datadog
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Attach the policy to the role
+resource "aws_iam_role_policy_attachment" "datadog_policy_attachment" {
+  role       = aws_iam_role.datadog_role.name
+  policy_arn = aws_iam_policy.datadog_policy.arn
 }
 
 # Política de IAM para permitir a Datadog acceder a CloudWatch
@@ -58,6 +87,26 @@ resource "aws_iam_policy" "datadog_policy" {
   })
 }
 
+# AWS Integration in Datadog
+resource "datadog_integration_aws" "main" {
+  account_id         = data.aws_caller_identity.current.account_id
+  role_name          = aws_iam_role.datadog_role.name
+  filter_tags        = ["environment:${var.environment}"]
+  host_tags          = ["env:${var.environment}", "monitored:true"]
+  account_specific_namespace_rules = {
+    # Enable specific AWS services to monitor
+    ec2              = true
+    s3               = true
+    cloudfront       = false
+    dynamodb         = false
+    lambda           = false
+    rds              = false
+  }
+}
+
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # Obtener los nombres de las instancias EC2 automáticamente
 data "aws_instances" "all" {
   filter {
@@ -66,36 +115,4 @@ data "aws_instances" "all" {
   }
 }
 
-# Crear un dashboard en Datadog
-resource "datadog_dashboard" "ec2_dashboard" {
-  title       = "EC2 Monitoring Dashboard"
-  description = "Dashboard para monitorizar instancias EC2"
-  layout_type = "ordered"
-
-  widget {
-    timeseries_definition {
-      title = "CPU Utilization"
-      request {
-        q = "avg:aws.ec2.cpuutilization{*} by {instance_id}"
-      }
-    }
-  }
-
-  widget {
-    timeseries_definition {
-      title = "Network In"
-      request {
-        q = "avg:aws.ec2.network_in{*} by {instance_id}"
-      }
-    }
-  }
-
-  widget {
-    timeseries_definition {
-      title = "Network Out"
-      request {
-        q = "avg:aws.ec2.network_out{*} by {instance_id}"
-      }
-    }
-  }
-}
+# The dashboard resource is now moved to dashboard.tf
